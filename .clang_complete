@@ -1,0 +1,3 @@
+-I ../OculusSDK/LibOVR/Include 
+-I ../OculusSDK/LibOVR/Src
+-I /usr/include/OGRE 
