@@ -69,7 +69,24 @@ class OgreOculusRender
             if(rtts[0])rtts[0]->writeContentsToFile(path);
         }
 
-        void writeTextureToFile();
+        Ogre::SceneNode* getCameraInformationNode()
+        {
+            return CameraNode;
+        }
+
+        Ogre::Timer* getTimer()
+        {
+            if(root)
+                return root->getTimer();
+            return NULL;
+        }
+
+        float getUpdateTime()
+        {
+            return updateTime;
+        }
+
+        void setCamerasNearClippingDistance(float distance);
 
     private:
         enum 
@@ -85,9 +102,11 @@ class OgreOculusRender
         Ogre::RenderWindow* window;
         Ogre::SceneManager* smgr;
         Ogre::Camera* cams[2];
+        Ogre::SceneNode* CameraNode;
         Ogre::RenderTexture* rtts[2];
         Ogre::Viewport* vpts[2];
-
+        Ogre::Real nearClippingDistance;
+        float updateTime; //seconds
         //Oculus
         OculusInterface* oc;
         ovrFovPort EyeFov[2];
@@ -98,5 +117,10 @@ class OgreOculusRender
         ovrSizei texSizeR;
 
         Ogre::Vector3 cameraPosition;
+        Ogre::Quaternion cameraOrientation;
+
+    public:
+        Ogre::Vector3 lastOculusPosition;
+        Ogre::Quaternion lastOculusOrientation;
 };
 
