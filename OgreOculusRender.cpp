@@ -6,7 +6,7 @@ OgreOculusRender::OgreOculusRender(std::string winName)
     root = NULL;
     window = NULL;
     smgr = NULL;
-    for(size_t i(0); i < 2; i++)
+    for(char i = 0; i < 2; i++)
     {
         cams[i] = NULL;
         rtts[i] = NULL;
