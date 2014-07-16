@@ -6,7 +6,7 @@ OgreOculusRender::OgreOculusRender(std::string winName)
     root = NULL;
     window = NULL;
     smgr = NULL;
-    for(size_t i(0); i < 2; i++)
+    for(char i(0); i < 2; i++)
     {
         cams[i] = NULL;
         rtts[i] = NULL;
@@ -17,10 +17,10 @@ OgreOculusRender::OgreOculusRender(std::string winName)
     CameraNode = NULL;
     cameraPosition = Ogre::Vector3(0,0,10);
     cameraOrientation = Ogre::Quaternion::IDENTITY;
-    this->nearClippingDistance = 0.05;
-    this->lastOculusPosition = cameraPosition;
-    this->lastOculusOrientation = cameraOrientation;
-    this->updateTime = 0;
+    nearClippingDistance = 0.05;
+    lastOculusPosition = cameraPosition;
+    lastOculusOrientation = cameraOrientation;
+    updateTime = 0;
 }
 
 OgreOculusRender::~OgreOculusRender()
@@ -106,7 +106,9 @@ void OgreOculusRender::createWindow()
 {
     assert(root != NULL && oc != NULL);
     Ogre::NameValuePairList misc;
+    //Seems to only work in windows.
     misc["border"]="none";
+    //TODO : find a way to open a borderless window on Linux (X system)
     window = root->initialise(false, name);
     window = root->createRenderWindow(name, oc->getHmdDesc().Resolution.w, oc->getHmdDesc().Resolution.h, false, &misc);
     window->reposition(oc->getHmdDesc().WindowsPos.x,oc->getHmdDesc().WindowsPos.y);
@@ -115,9 +117,10 @@ void OgreOculusRender::createWindow()
 void OgreOculusRender::initCameras()
 {
     assert(smgr != NULL);
+    //Camera management is done at render time
     cams[left] = smgr->createCamera("lcam");
     cams[right] = smgr->createCamera("rcam");
-    for(int i = 0; i < 2; i++)
+    for(char i(0); i < 2; i++)
     {
         cams[i]->setPosition(cameraPosition);
         cams[i]->setAutoAspectRatio(true);
@@ -137,12 +140,13 @@ void OgreOculusRender::setCamerasNearClippingDistance(float distance)
 void OgreOculusRender::initScene()
 {
     assert(root != NULL);
+    //Need plugin OctreeSceneManager.
     smgr = root->createSceneManager("OctreeSceneManager","OSM_SMGR");
 }
 
 void OgreOculusRender::initRttRendering()
 {
-    //get texture sice from ovr with default fov
+    //Get texture size from ovr with default fov
     texSizeL = ovrHmd_GetFovTextureSize(oc->getHmd(), ovrEye_Left, oc->getHmdDesc().DefaultEyeFov[0], 1.0f);
     texSizeR = ovrHmd_GetFovTextureSize(oc->getHmd(), ovrEye_Right, oc->getHmdDesc().DefaultEyeFov[1], 1.0f);
 
@@ -150,26 +154,29 @@ void OgreOculusRender::initRttRendering()
     Ogre::TexturePtr rtt_textureL = Ogre::TextureManager::getSingleton().createManual("RttTexL", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, Ogre::TEX_TYPE_2D, texSizeL.w, texSizeL.h, 0, Ogre::PF_R8G8B8, Ogre::TU_RENDERTARGET);
 
     Ogre::TexturePtr rtt_textureR = Ogre::TextureManager::getSingleton().createManual("RttTexR", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, Ogre::TEX_TYPE_2D, texSizeR.w, texSizeR.h, 0, Ogre::PF_R8G8B8, Ogre::TU_RENDERTARGET);
-    //Create Render Texture 
+    
+    //Create Render Texture
     Ogre::RenderTexture* rttEyeLeft = rtt_textureL->getBuffer(0,0)->getRenderTarget();
     Ogre::RenderTexture* rttEyeRight = rtt_textureR->getBuffer(0,0)->getRenderTarget();
 
-    //Create and bind a viewport to the texture
-    Ogre::Viewport* vptl = rttEyeLeft->addViewport(cams[left]);  
-    vptl->setBackgroundColour(Ogre::ColourValue(0.3,0.3,0.9));
-    Ogre::Viewport* vptr = rttEyeRight->addViewport(cams[right]);  
-    vptr->setBackgroundColour(Ogre::ColourValue(0.3,0.3,0.9));
+    //Create and bind viewports to textures
+    Ogre::ColourValue background(0.3f,0.3f,0.9f);
     
+    Ogre::Viewport* vptl = rttEyeLeft->addViewport(cams[left]);  
+    vptl->setBackgroundColour(background);
+
+    Ogre::Viewport* vptr = rttEyeRight->addViewport(cams[right]);  
+    vptr->setBackgroundColour(background);
+    
+
     //Store viewport pointer
     vpts[left] = vptl;
     vpts[right] = vptr;
 
-    //Pupulate textures with an initial render
+    //Populate textures with an initial render
     rttEyeLeft->update();
     rttEyeRight->update();
     
-    rttEyeLeft->writeContentsToFile("debug_init_cam_left.png");
-
     //Store rtt textures pointer
     rtts[left] = rttEyeLeft;
     rtts[right] = rttEyeRight;
@@ -186,9 +193,8 @@ void OgreOculusRender::initOculus()
     cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
     cfg.OGL.Header.Multisample = 1;
     cfg.OGL.Header.RTSize = oc->getHmdDesc().Resolution;
-    
-    ///////////////////// LINUX SPECIFIC 
-    //TODO define to protect that and to put Windows equivalent 
+   
+#ifdef __linux__
     size_t wID;
     window->getCustomAttribute("WINDOW", &wID);
     std::cout << "Wid : " << wID << endl;
@@ -198,60 +204,62 @@ void OgreOculusRender::initOculus()
     window->getCustomAttribute("DISPLAY",&display);
     cfg.OGL.Disp = display;
     /////////////////////////////////////////////
+#elif _WIN32
+    //OpenGL context extraction from ogre needed. No time to reed doc now
+    //Also nide a f*** windows.h include
+#endif
 
     if(!ovrHmd_ConfigureRendering(
                 oc->getHmd(),
                 &cfg.Config,oc->getHmdDesc().DistortionCaps,
                 EyeFov,
                 EyeRenderDesc))
-        abort();
+        abort(); //There is something WRONG if it doesn't work;
     
-    EyeTexture[left].OGL.Header.API = ovrRenderAPI_OpenGL;
+    //Feed OculusSDK with Texture info
+    EyeTexture[left].OGL.Header.API = ovrRenderAPI_OpenGL; //I never heard about "Direct X". Is it something related to porn ? 
     EyeTexture[left].OGL.Header.TextureSize = texSizeL;
     EyeTexture[left].OGL.Header.RenderViewport.Pos.x = 0;
     EyeTexture[left].OGL.Header.RenderViewport.Pos.y = 0; 
     EyeTexture[left].OGL.Header.RenderViewport.Size = texSizeL; 
     
-    Ogre::GLTexture* gl_rtt_l = static_cast<Ogre::GLTexture*>(Ogre::GLTextureManager::getSingleton().getByName("RttTexL").get());
-    EyeTexture[left].OGL.TexId = gl_rtt_l->getGLID();
+    EyeTexture[left].OGL.TexId = (static_cast<Ogre::GLTexture*>(Ogre::GLTextureManager::getSingleton().getByName("RttTexL").get()))->getGLID();
     
     EyeTexture[right] = EyeTexture[0];
     EyeTexture[right].OGL.Header.TextureSize = texSizeR;
     EyeTexture[right].OGL.Header.RenderViewport.Size = texSizeR;
     
-    Ogre::GLTexture* gl_rtt_r = static_cast<Ogre::GLTexture*>(Ogre::GLTextureManager::getSingleton().getByName("RttTexR").get());
-    EyeTexture[right].OGL.TexId = gl_rtt_r->getGLID();
+    EyeTexture[right].OGL.TexId = (static_cast<Ogre::GLTexture*>(Ogre::GLTextureManager::getSingleton().getByName("RttTexR").get()))->getGLID();
 }
 
 void OgreOculusRender::RenderOneFrame()
 {
-    //get some info
+
+    //Get info from the "Virtual Camera Node"
     cameraPosition = this->CameraNode->getPosition();
     cameraOrientation = this->CameraNode->getOrientation();
-    //Begin frame
-    ovrFrameTiming hmdFrameTiming = ovrHmd_BeginFrame(oc->getHmd(), 0);
-    //Tell ogre that Frame started
-    root->_fireFrameStarted();
     
-
+    ///Begin frame
+    //Timing for OVR
+    ovrFrameTiming hmdFrameTiming = ovrHmd_BeginFrame(oc->getHmd(), 0);
+    //Ogre Event : Frame Started 
+    root->_fireFrameStarted();
+    //Let objects in scene get event
     for (Ogre::SceneManagerEnumerator::SceneManagerIterator it = root->getSceneManagerIterator(); it.hasMoreElements(); it.moveNext())
         it.peekNextValue()->_handleLodEvents();
 
-
-    //essage pump events 
+    //Get Window messages from OS
     Ogre::WindowEventUtilities::messagePump();
-    for(int eyeIndex = 0; eyeIndex < ovrEye_Count; eyeIndex++)
+
+
+    for(char eyeIndex(0); eyeIndex < ovrEye_Count; eyeIndex++)
     {
-        cout << "eye index = " << eyeIndex << endl;
 
         //Get the correct eye to render
         ovrEyeType eye = oc->getHmdDesc().EyeRenderOrder[eyeIndex];
 
-        cout << "eye = " << eye << endl;
-
-        //Set the Ogre render target to the texture
+        //Set the Ogre render target to the texture (OpenGL will bind the correct viewport)
         root->getRenderSystem()->_setRenderTarget(rtts[eye]);
-        
 
         //Get the eye pose 
         ovrPosef eyePose = ovrHmd_BeginEyeRender(oc->getHmd(), eye);
@@ -259,58 +267,54 @@ void OgreOculusRender::RenderOneFrame()
         //Get the hmd orientation
         OVR::Quatf camOrient = eyePose.Orientation;
         
-        //Get the projection matrix
+        //Compute the projection matrix from FOV and clipping planes distances
         OVR::Matrix4f proj = ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov,static_cast<float>(nearClippingDistance), 10000.0f, true);
 
-        //Convert it to Ogre matrix
+        //Convert it to Ogre matrix 
         Ogre::Matrix4 OgreProj;
-        for(int x(0); x < 4; x++)
-            for(int y(0); y < 4; y++)
+        for(char x(0); x < 4; x++)
+            for(char y(0); y < 4; y++)
                 OgreProj[x][y] = proj.M[x][y];
-        
         
         //Set the matrix
         cams[eye]->setCustomProjectionMatrix(true, OgreProj);
-        cams[eye]->setNearClipDistance(this->nearClippingDistance);
         //Set the orientation
         cams[eye]->setOrientation(cameraOrientation * Ogre::Quaternion(camOrient.w,camOrient.x,camOrient.y,camOrient.z));
 
         //Set Position
         cams[eye]->setPosition( cameraPosition + 
                 (cams[eye]->getOrientation() *
-                -Ogre::Vector3(
-                    EyeRenderDesc[eye].ViewAdjust.x,
-                    EyeRenderDesc[eye].ViewAdjust.y,
-                    EyeRenderDesc[eye].ViewAdjust.z))
+                 - //For some reason cams are inverted here. Take the oposite vector
+                 Ogre::Vector3(
+                     EyeRenderDesc[eye].ViewAdjust.x,
+                     EyeRenderDesc[eye].ViewAdjust.y,
+                     EyeRenderDesc[eye].ViewAdjust.z))
                 );
-
-        cout << "VIEW ADJUST VECTOR" << endl
-            << "left : (x, y, z) : ("
-            << EyeRenderDesc[0].ViewAdjust.x << ", "
-            << EyeRenderDesc[0].ViewAdjust.y << ", "
-            << EyeRenderDesc[0].ViewAdjust.z << ")" << endl
-            << "right : (x, y, z) : ("
-            << EyeRenderDesc[1].ViewAdjust.x << ", "
-            << EyeRenderDesc[1].ViewAdjust.y << ", "
-            << EyeRenderDesc[1].ViewAdjust.z << ")" << endl;
 
         if(eye == left) //get an eye pos/orient for game logic
         {
-            this->lastOculusPosition = cams[eye]->getPosition();
-            this->lastOculusOrientation = cams[eye]->getOrientation();
+            lastOculusPosition = cams[eye]->getPosition();
+            lastOculusOrientation = cams[eye]->getOrientation();
         }
 
+        //Send Ogre Event "Frame will render"
         root->_fireFrameRenderingQueued();
+
+        //Get the texture from the computed viewpoint
         rtts[eye]->update();
+
+        //Finaly render the distortion
         ovrHmd_EndEyeRender(oc->getHmd(), eye, eyePose, &EyeTexture[eye].Texture);
     }
-    Ogre::Root::getSingleton().getRenderSystem()->_setRenderTarget(window); 
-    this->updateTime = hmdFrameTiming.DeltaSeconds;
+    
+    //Set the window at render target so OpenGL bind to the "viewport" on the window (I haven't created a viewport but it seems Oculus lib takes care of it);
+    root->getRenderSystem()->_setRenderTarget(window); 
+    //Get timing from Oculus
+    updateTime = hmdFrameTiming.DeltaSeconds;
 
-    //Tell Ogre that frame ended
+    //End frame timing
     ovrHmd_EndFrame(oc->getHmd());
+    //Fire Ogre ended frame event.
     root->_fireFrameEnded();
-
-    debugPrint();
 }
 

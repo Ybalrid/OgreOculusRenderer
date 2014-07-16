@@ -26,67 +26,94 @@ class OgreOculusRender
     public:
         OgreOculusRender(std::string windowName = "OgreOculusRender");
         ~OgreOculusRender();
+        
+        //Automaticly load resources.cfg file and config everything
         void initialize();
 
+        //Init both Ogre and OVR
         void initLibraries();
 
+        //Get Data form the given .cfg file and regiter into ResourceManager
         void loadReseourceFile(const char path[]);
+
+        //Init all declared resource groups
         void initAllResources();
         
+        //Get ogre configuration from ogre.cfg (or Config window if fails)
         void getOgreConfig();
         
+        //Create rendering window
         void createWindow();
+
+        //Init scene manager
         void initScene();
 
+        //Create stereoscopic cam 
         void initCameras();
+
+        //Create Textures for intermediate rendering and bind cameras to viewports on it. 2 texture (one for each eye);
         void initRttRendering();
         
+        //Init Oculus Rendering 
         void initOculus();
 
-        Ogre::SceneManager* getSceneManager()
-        {
-            return smgr;
-        }
-        Ogre::RenderWindow* getWindow()
-        {
-            return window;
-        }
-
+        //Do the same thing that should do Ogre::Root::renderOneFrame, but let Oculus take care of buffer swpaing and frame timing
         void RenderOneFrame();
+        
+        //Set near clipping plane distance
+        void setCamerasNearClippingDistance(float distance);
 
+        //Print basic information
         void debugPrint()
         {
-            for(int i(0); i < 2; i++)
+            for(char i(0); i < 2; i++)
             {
                cout << "cam " << i << " " << cams[i]->getPosition() << endl;
                cout << cams[i]->getOrientation() << endl;
             }
 
         }
+        
+        //GETTERS
 
+        //Write texture to image file. Compression chousen from file extension (have to be a free image compatible type)
         void debugSaveToFile(const char path[])
         {
             if(rtts[0])rtts[0]->writeContentsToFile(path);
         }
 
+        //Get a pointer to a node acting like a virtual camera
         Ogre::SceneNode* getCameraInformationNode()
         {
             return CameraNode;
         }
-
+        
+        //Gett the Ogre Root timer. but please consider using the update time value below, it comes from Oculus Frame Timing 
         Ogre::Timer* getTimer()
         {
             if(root)
                 return root->getTimer();
             return NULL;
         }
-
+        
+        //Get the Oculus "UpdateFrame" delta-time (seconds)
         float getUpdateTime()
         {
             return updateTime;
         }
 
-        void setCamerasNearClippingDistance(float distance);
+        //Get the SceneManager
+        Ogre::SceneManager* getSceneManager()
+        {
+            return smgr;
+        }
+
+        //Get the RenderWindow
+        Ogre::RenderWindow* getWindow()
+        {
+            return window;
+        }
+
 
     private:
         enum 
@@ -107,8 +134,10 @@ class OgreOculusRender
         Ogre::Viewport* vpts[2];
         Ogre::Real nearClippingDistance;
         float updateTime; //seconds
+        
         //Oculus
         OculusInterface* oc;
+        
         ovrFovPort EyeFov[2];
         ovrEyeRenderDesc EyeRenderDesc[2];
         ovrGLConfig cfg; //OpenGL
@@ -119,7 +148,7 @@ class OgreOculusRender
         Ogre::Vector3 cameraPosition;
         Ogre::Quaternion cameraOrientation;
 
-    public:
+    public: //Only for game logic, does not do anything with the render.
         Ogre::Vector3 lastOculusPosition;
         Ogre::Quaternion lastOculusOrientation;
 };

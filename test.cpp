@@ -1,4 +1,6 @@
 #include "OgreOculusRender.hpp"
+#include <vector>
+
 
 int main()
 {
@@ -17,10 +19,10 @@ int main()
         Ogre::Entity* SinbadMesh = smgr->createEntity("Sinbad.mesh");
         Sinbad->attachObject(SinbadMesh);
 
-        Sinbad->setPosition(0,0,0);
+        Sinbad->setPosition(0,0,-7);
 
         smgr->setAmbientLight(Ogre::ColourValue(1,1,1));
-        
+
         while(!window->isClosed()) 
             oor->RenderOneFrame();
         delete oor;
