@@ -1,0 +1,13 @@
+*.o
+core.*
+vgcore.*
+test
+a.out
+*.png
+*.ppm
+*.so
+*.so.*
+*.swp
+.*.swp
+*.save
+*.log
